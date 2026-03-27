@@ -1,0 +1,27 @@
+dependencies {
+    // Web
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+
+    // Security + JWT
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
+    runtimeOnly    "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
+    runtimeOnly    "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
+
+    // Data + Flyway
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+    implementation 'org.springframework.boot:spring-boot-starter-validation'
+    implementation 'org.flywaydb:flyway-core'
+    runtimeOnly    'org.postgresql:postgresql'
+
+    // OpenAPI / Swagger UI
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.5.0'
+
+    // Cloud
+    implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
+    implementation 'org.springframework.cloud:spring-cloud-starter-config'
+
+    // Test
+    testImplementation 'org.springframework.security:spring-security-test'
+    testRuntimeOnly    'com.h2database:h2'
+}

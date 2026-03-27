@@ -1,0 +1,81 @@
+version: '3.8'
+
+services:
+
+  # ── PostgreSQL ──────────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: smartbank-postgres
+    environment:
+      POSTGRES_USER: smartbank
+      POSTGRES_PASSWORD: smartbank123
+      POSTGRES_DB: smartbank
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
+    networks:
+      - smartbank-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U smartbank"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Zookeeper ───────────────────────────────────────────────
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.6.0
+    container_name: smartbank-zookeeper
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+      ZOOKEEPER_TICK_TIME: 2000
+    ports:
+      - "2181:2181"
+    networks:
+      - smartbank-net
+
+  # ── Kafka ───────────────────────────────────────────────────
+  kafka:
+    image: confluentinc/cp-kafka:7.6.0
+    container_name: smartbank-kafka
+    depends_on:
+      - zookeeper
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092,PLAINTEXT_HOST://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    ports:
+      - "29092:29092"
+    networks:
+      - smartbank-net
+
+  # ── Zipkin ──────────────────────────────────────────────────
+  zipkin:
+    image: openzipkin/zipkin:latest
+    container_name: smartbank-zipkin
+    ports:
+      - "9411:9411"
+    networks:
+      - smartbank-net
+
+  # ── MailHog (dev email testing) ─────────────────────────────
+  mailhog:
+    image: mailhog/mailhog:latest
+    container_name: smartbank-mailhog
+    ports:
+      - "1025:1025"
+      - "8025:8025"
+    networks:
+      - smartbank-net
+
+volumes:
+  postgres-data:
+
+networks:
+  smartbank-net:
+    driver: bridge

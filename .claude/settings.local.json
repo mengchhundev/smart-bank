@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gradle wrapper:*)",
+      "Read(//c/Program Files/**)",
+      "Read(//c/Users/ksg-usr/AppData/**)",
+      "Bash(export JAVA_HOME=\"/c/Program Files/Eclipse Adoptium/jdk-17.0.16.8-hotspot\")",
+      "Bash(\"$JAVA_HOME/bin/java\" -version)",
+      "Bash(\"$JAVA_HOME/bin/java\" -cp /dev/null -Djava.net.useSystemProxies=true -jar /dev/null)",
+      "Bash(curl -fSL -o gradle/wrapper/gradle-wrapper.jar \"https://services.gradle.org/distributions/gradle-8.7-bin.zip\" --max-time 10)",
+      "Bash(chmod:*)",
+      "Bash(./gradlew --version)",
+      "Bash(docker ps:*)",
+      "Bash(docker exec:*)",
+      "Bash(grep -v \"^$\")",
+      "Bash(docker-compose down:*)",
+      "Bash(docker-compose up:*)"
+    ]
+  }
+}

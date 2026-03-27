@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <title>Transaction Notification</title>
+</head>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+    <div style="background-color: #1a56db; color: white; padding: 20px; text-align: center;">
+        <h1>SmartBank</h1>
+    </div>
+    <div style="padding: 20px; border: 1px solid #e5e7eb;">
+        <h2>Transaction Notification</h2>
+        <table style="width: 100%; border-collapse: collapse;">
+            <tr>
+                <td style="padding: 8px; font-weight: bold;">Reference:</td>
+                <td style="padding: 8px;" th:text="${referenceNumber}"></td>
+            </tr>
+            <tr style="background-color: #f9fafb;">
+                <td style="padding: 8px; font-weight: bold;">Amount:</td>
+                <td style="padding: 8px;" th:text="${amount} + ' ' + ${currency}"></td>
+            </tr>
+            <tr>
+                <td style="padding: 8px; font-weight: bold;">From:</td>
+                <td style="padding: 8px;" th:text="${sourceAccount}"></td>
+            </tr>
+            <tr style="background-color: #f9fafb;">
+                <td style="padding: 8px; font-weight: bold;">To:</td>
+                <td style="padding: 8px;" th:text="${targetAccount}"></td>
+            </tr>
+            <tr>
+                <td style="padding: 8px; font-weight: bold;">Status:</td>
+                <td style="padding: 8px;" th:text="${status}"></td>
+            </tr>
+            <tr style="background-color: #f9fafb;">
+                <td style="padding: 8px; font-weight: bold;">Date:</td>
+                <td style="padding: 8px;" th:text="${timestamp}"></td>
+            </tr>
+        </table>
+    </div>
+    <div style="padding: 10px; text-align: center; color: #6b7280; font-size: 12px;">
+        <p>This is an automated notification from SmartBank. Do not reply.</p>
+    </div>
+</body>
+</html>
