@@ -1,0 +1,27 @@
+spring:
+  datasource:
+    url: jdbc:tc:postgresql:15:///transaction_test_db
+    driver-class-name: org.testcontainers.jdbc.ContainerDatabaseDriver
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  kafka:
+    bootstrap-servers: ${spring.embedded.kafka.brokers:localhost:29092}
+
+eureka:
+  client:
+    enabled: false
+
+spring.cloud.config.enabled: false
+spring.config.import: ""
+
+jwt:
+  secret: smartbank-jwt-secret-key-that-is-at-least-256-bits-long-for-hs256
+
+management:
+  tracing:
+    enabled: false

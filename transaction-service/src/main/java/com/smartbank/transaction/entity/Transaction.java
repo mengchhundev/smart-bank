@@ -16,13 +16,13 @@ public class Transaction {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(name = "reference_number", nullable = false, unique = true)
+    @Column(name = "reference_number", nullable = false, unique = true, length = 20)
     private String referenceNumber;
 
-    @Column(name = "source_account", nullable = false)
+    @Column(name = "source_account", nullable = false, length = 50)
     private String sourceAccount;
 
-    @Column(name = "target_account", nullable = false)
+    @Column(name = "target_account", nullable = false, length = 50)
     private String targetAccount;
 
     @Column(nullable = false, precision = 19, scale = 4)
@@ -33,18 +33,23 @@ public class Transaction {
     private String currency = "USD";
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
+    @Column(nullable = false, length = 20)
     @Builder.Default
     private TransactionStatus status = TransactionStatus.PENDING;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "transaction_type", nullable = false)
+    @Column(name = "transaction_type", nullable = false, length = 20)
     private TransactionType transactionType;
 
+    @Column(length = 500)
     private String description;
 
-    @Column(name = "failure_reason")
+    @Column(name = "failure_reason", length = 1000)
     private String failureReason;
+
+    /** Stores the X-Idempotency-Key header value for deduplication. */
+    @Column(name = "idempotency_key", length = 255)
+    private String idempotencyKey;
 
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)

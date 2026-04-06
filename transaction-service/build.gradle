@@ -7,9 +7,17 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     runtimeOnly    'org.postgresql:postgresql'
 
+    // Flyway
+    implementation 'org.flywaydb:flyway-core'
+    runtimeOnly    'org.flywaydb:flyway-database-postgresql'
+
     // Security
     implementation 'org.springframework.boot:spring-boot-starter-security'
-    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
+
+    // JWT
+    implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
+    runtimeOnly    "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
+    runtimeOnly    "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
 
     // Cloud
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
@@ -24,6 +32,13 @@ dependencies {
     implementation         "org.mapstruct:mapstruct:${mapstructVersion}"
     annotationProcessor    "org.mapstruct:mapstruct-processor:${mapstructVersion}"
 
+    // OpenAPI / Swagger
+    implementation 'org.springdoc:springdoc-openapi-starter-webmvc-ui:2.3.0'
+
     // Test
     testImplementation 'org.springframework.security:spring-security-test'
+    testImplementation 'org.springframework.boot:spring-boot-testcontainers'
+    testImplementation 'org.testcontainers:junit-jupiter'
+    testImplementation 'org.testcontainers:postgresql'
+    testImplementation 'org.testcontainers:kafka'
 }

@@ -43,6 +43,9 @@ public class Account {
     @Column(name = "user_id", nullable = false)
     private Long userId;
 
+    @Version
+    private Integer version;
+
     @CreationTimestamp
     @Column(name = "created_at", updatable = false)
     private LocalDateTime createdAt;

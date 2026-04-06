@@ -10,6 +10,16 @@ import java.time.LocalDateTime;
 
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
 public class TransactionEvent {
+
+    /**
+     * Saga event type:
+     * <ul>
+     *   <li>{@code TRANSACTION_SUCCESS} — transfer completed; downstream services may proceed.</li>
+     *   <li>{@code TRANSACTION_FAILED}  — transfer failed; compensation already applied.</li>
+     * </ul>
+     */
+    private String eventType;
+
     private String referenceNumber;
     private String sourceAccount;
     private String targetAccount;
@@ -17,5 +27,6 @@ public class TransactionEvent {
     private String currency;
     private String status;
     private String transactionType;
+    private String failureReason;
     private LocalDateTime timestamp;
 }

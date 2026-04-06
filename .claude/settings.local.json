@@ -14,7 +14,16 @@
       "Bash(docker exec:*)",
       "Bash(grep -v \"^$\")",
       "Bash(docker-compose down:*)",
-      "Bash(docker-compose up:*)"
+      "Bash(docker-compose up:*)",
+      "Bash(xargs grep:*)",
+      "Bash(xargs -I {} find {} -name \"*.java\" -path \"*/dto/*\")",
+      "Bash(./gradlew :account-service:compileJava)",
+      "Bash(./gradlew :auth-service:compileJava)",
+      "Bash(./gradlew :account-service:test)",
+      "Bash(./gradlew :account-service:test --info)",
+      "Bash(./gradlew :account-service:test --rerun)",
+      "Bash(grep:*)",
+      "Bash(xargs -I {} find {} -name \"*.java\")"
     ]
   }
 }

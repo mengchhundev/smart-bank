@@ -18,7 +18,4 @@ public class CreateAccountRequest {
     private AccountType accountType;
 
     private String currency;
-
-    @NotNull(message = "User ID is required")
-    private Long userId;
 }

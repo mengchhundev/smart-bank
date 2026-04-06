@@ -13,10 +13,11 @@ import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.web.bind.annotation.*;
+
+import com.smartbank.auth.entity.User;
 
 @RestController
 @RequestMapping("/api/auth")
@@ -25,6 +26,7 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+    private final com.smartbank.auth.repository.UserRepository userRepository;
 
     @Operation(summary = "Register a new user", security = {})
     @ApiResponses({
@@ -75,5 +77,33 @@ public class AuthController {
     public ResponseEntity<Void> logout(@Valid @RequestBody LogoutRequest request) {
         authService.logout(request);
         return ResponseEntity.noContent().build();
+    }
+
+    @Operation(summary = "Validate JWT token and return user info")
+    @SecurityRequirement(name = "Bearer JWT")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Token is valid",
+                    content = @Content(schema = @Schema(implementation = TokenValidationResponse.class))),
+            @ApiResponse(responseCode = "401", description = "Invalid or expired token")
+    })
+    @GetMapping("/validate")
+    public ResponseEntity<TokenValidationResponse> validate(Authentication authentication) {
+        String username = authentication.getName();
+        String role = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .filter(a -> a.startsWith("ROLE_"))
+                .map(a -> a.substring(5))
+                .findFirst()
+                .orElse("CUSTOMER");
+
+        com.smartbank.auth.entity.User user = userRepository.findByUsername(username)
+                .orElseThrow(() -> new org.springframework.security.core.userdetails.UsernameNotFoundException(
+                        "User not found: " + username));
+
+        return ResponseEntity.ok(TokenValidationResponse.builder()
+                .userId(user.getId())
+                .username(username)
+                .role(role)
+                .build());
     }
 }

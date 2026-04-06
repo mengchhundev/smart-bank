@@ -12,7 +12,15 @@ import java.util.Optional;
 
 @Repository
 public interface TransactionRepository extends JpaRepository<Transaction, Long> {
+
     Optional<Transaction> findByReferenceNumber(String referenceNumber);
-    Page<Transaction> findBySourceAccountOrTargetAccount(String sourceAccount, String targetAccount, Pageable pageable);
+
+    Page<Transaction> findBySourceAccountOrTargetAccount(
+            String sourceAccount, String targetAccount, Pageable pageable);
+
     List<Transaction> findByStatus(TransactionStatus status);
+
+    boolean existsByIdempotencyKey(String idempotencyKey);
+
+    Optional<Transaction> findByIdempotencyKey(String idempotencyKey);
 }
