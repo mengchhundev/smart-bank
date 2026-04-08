@@ -9,6 +9,9 @@ import com.smartbank.account.exception.AccountNotFoundException;
 import com.smartbank.account.exception.InsufficientBalanceException;
 import com.smartbank.account.mapper.AccountMapper;
 import com.smartbank.account.repository.AccountRepository;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -23,7 +26,17 @@ import java.util.UUID;
 public class AccountService {
 
     private final AccountRepository accountRepository;
-    private final AccountMapper accountMapper;
+    private final AccountMapper     accountMapper;
+    private final MeterRegistry     meterRegistry;
+
+    private Counter accountCreatedCounter;
+
+    @PostConstruct
+    void initMetrics() {
+        accountCreatedCounter = Counter.builder("account_created_total")
+                .description("Total number of bank accounts created")
+                .register(meterRegistry);
+    }
 
     @Transactional
     public AccountDto createAccount(CreateAccountRequest request, Long userId) {
@@ -35,6 +48,7 @@ public class AccountService {
         }
 
         Account saved = accountRepository.save(account);
+        accountCreatedCounter.increment();
         log.info("Account created: {} for userId: {}", saved.getAccountNumber(), userId);
         return accountMapper.toDto(saved);
     }

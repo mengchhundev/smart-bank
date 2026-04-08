@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <springProperty scope="context" name="SERVICE_NAME" source="spring.application.name" defaultValue="smartbank"/>
+    <springProperty scope="context" name="ROOT_LOG_LEVEL"  source="logging.level.root"             defaultValue="INFO"/>
+
+    <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <fieldNames>
+                <timestamp>@timestamp</timestamp>
+                <version>[ignore]</version>
+                <levelValue>[ignore]</levelValue>
+                <logger>logger</logger>
+                <thread>thread</thread>
+                <message>message</message>
+                <stackTrace>stack_trace</stackTrace>
+            </fieldNames>
+            <customFields>{"service":"${SERVICE_NAME}"}</customFields>
+        </encoder>
+    </appender>
+
+    <logger name="com.netflix.discovery"                    level="WARN"/>
+    <logger name="org.springframework.cloud.netflix.eureka" level="WARN"/>
+    <logger name="reactor.netty"                            level="WARN"/>
+    <logger name="io.netty"                                 level="WARN"/>
+    <logger name="org.springframework.cloud.gateway"        level="INFO"/>
+
+    <root level="${ROOT_LOG_LEVEL}">
+        <appender-ref ref="JSON_CONSOLE"/>
+    </root>
+
+</configuration>

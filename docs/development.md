@@ -160,3 +160,71 @@ Expected behavior — `transaction-service` will mark the transaction as FAILED 
 - **Exceptions:** Custom exception classes per domain, caught by `@RestControllerAdvice`
 - **Security:** Extract user identity from JWT claims, never from the request body
 - **Internal APIs:** Prefixed `/api/v1/` (service-to-service); public APIs use the same prefix but are routed through the gateway
+
+---
+
+## Kubernetes Development Workflow
+
+For developing and testing against a local K8s cluster.
+
+### Setup
+
+```bash
+# Start minikube
+minikube start --cpus=4 --memory=8192
+minikube addons enable ingress
+minikube addons enable metrics-server
+
+# Build images in minikube's Docker
+eval $(minikube docker-env)
+```
+
+### Build & Deploy
+
+```bash
+# Build a single service image
+docker build --build-arg SERVICE_NAME=auth-service --build-arg SERVICE_PORT=8081 \
+  -t smartbank-auth-service:dev .
+
+# Deploy with Helm
+helm dependency build helm/smartbank
+helm upgrade --install smartbank helm/smartbank \
+  --namespace smartbank --create-namespace \
+  --set global.imageTag=dev \
+  --set global.imagePullPolicy=Never    # use local images
+```
+
+### Iterating on a Single Service
+
+```bash
+# Rebuild and restart just one service
+docker build --build-arg SERVICE_NAME=auth-service --build-arg SERVICE_PORT=8081 \
+  -t smartbank-auth-service:dev .
+kubectl rollout restart deployment/auth-service -n smartbank
+```
+
+### Debugging in K8s
+
+```bash
+# Tail logs
+kubectl logs -f deployment/auth-service -n smartbank
+
+# Exec into pod
+kubectl exec -it deployment/auth-service -n smartbank -- /bin/sh
+
+# Port-forward for direct access
+kubectl port-forward svc/auth-service 8081:8081 -n smartbank
+
+# Check events
+kubectl get events -n smartbank --sort-by='.lastTimestamp'
+```
+
+### Common K8s Issues
+
+**Pod stuck in CrashLoopBackOff:** Check logs with `kubectl logs <pod> -n smartbank --previous`. Usually a config/connection issue.
+
+**ImagePullBackOff:** If using local images with minikube, set `imagePullPolicy: Never` or run `eval $(minikube docker-env)` before building.
+
+**Pods pending:** Insufficient cluster resources — check `kubectl top nodes` and increase minikube resources.
+
+See [Kubernetes Deployment Guide](kubernetes-deployment.md) for comprehensive troubleshooting.

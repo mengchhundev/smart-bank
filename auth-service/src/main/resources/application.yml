@@ -44,6 +44,9 @@ springdoc:
     operations-sorter: method
     tags-sorter: alpha
 
+app:
+  api-gateway-url: http://localhost:8080
+
 # ── JWT Configuration ─────────────────────────────────────────
 jwt:
   secret: smartbank-jwt-secret-key-that-is-at-least-256-bits-long-for-hs256
@@ -63,7 +66,19 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info,flyway
+        include: health,info,flyway,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+  health:
+    db:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
   tracing:
     sampling:
       probability: 1.0

@@ -6,20 +6,182 @@ spring:
     import: "optional:configserver:"
   application:
     name: api-gateway
+
+  # ── Redis (rate limiting) ──────────────────────────────────────────────────
+  data:
+    redis:
+      host: localhost
+      port: 6379
+      connect-timeout: 2s
+      timeout: 1s
+
+  # ── Gateway ────────────────────────────────────────────────────────────────
   cloud:
     gateway:
-      default-filters:
-        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+
+      # ── CORS ────────────────────────────────────────────────────────────────
       globalcors:
         corsConfigurations:
           '[/**]':
-            allowedOrigins: "*"
-            allowedMethods: "*"
-            allowedHeaders: "*"
+            allowedOriginPatterns: [ "*" ]
+            allowedMethods: [ GET, POST, PUT, DELETE, PATCH, OPTIONS ]
+            allowedHeaders: [ "*" ]
+            allowCredentials: true
+            maxAge: 3600
 
+      default-filters:
+        - DedupeResponseHeader=Access-Control-Allow-Credentials Access-Control-Allow-Origin
+
+      # ── Routes ──────────────────────────────────────────────────────────────
+      routes:
+
+        # ── Auth service (no rate limiting — login/register must never be throttled) ──
+        - id: auth-service
+          uri: lb://auth-service
+          predicates:
+            - Path=/api/auth/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: authCircuitBreaker
+                fallbackUri: forward:/fallback/auth
+
+        # ── Account service ────────────────────────────────────────────────────
+        - id: account-service
+          uri: lb://account-service
+          predicates:
+            - Path=/api/accounts/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: accountCircuitBreaker
+                fallbackUri: forward:/fallback/account
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                redis-rate-limiter.requestedTokens: 1
+                key-resolver: "#{@userKeyResolver}"
+
+        # ── Transaction service ────────────────────────────────────────────────
+        - id: transaction-service
+          uri: lb://transaction-service
+          predicates:
+            - Path=/api/transactions/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: transactionCircuitBreaker
+                fallbackUri: forward:/fallback/transaction
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 5
+                redis-rate-limiter.burstCapacity: 10
+                redis-rate-limiter.requestedTokens: 1
+                key-resolver: "#{@userKeyResolver}"
+
+        # ── Notification service ───────────────────────────────────────────────
+        - id: notification-service
+          uri: lb://notification-service
+          predicates:
+            - Path=/api/notifications/**
+          filters:
+            - name: CircuitBreaker
+              args:
+                name: notificationCircuitBreaker
+                fallbackUri: forward:/fallback/notification
+            - name: RequestRateLimiter
+              args:
+                redis-rate-limiter.replenishRate: 10
+                redis-rate-limiter.burstCapacity: 20
+                redis-rate-limiter.requestedTokens: 1
+                key-resolver: "#{@userKeyResolver}"
+
+        # ── Swagger aggregation — proxy each service's api-docs ───────────────
+        - id: auth-service-docs
+          uri: lb://auth-service
+          predicates:
+            - Path=/v3/api-docs/auth-service
+          filters:
+            - RewritePath=/v3/api-docs/auth-service, /v3/api-docs
+
+        - id: account-service-docs
+          uri: lb://account-service
+          predicates:
+            - Path=/v3/api-docs/account-service
+          filters:
+            - RewritePath=/v3/api-docs/account-service, /v3/api-docs
+
+        - id: transaction-service-docs
+          uri: lb://transaction-service
+          predicates:
+            - Path=/v3/api-docs/transaction-service
+          filters:
+            - RewritePath=/v3/api-docs/transaction-service, /v3/api-docs
+
+        - id: notification-service-docs
+          uri: lb://notification-service
+          predicates:
+            - Path=/v3/api-docs/notification-service
+          filters:
+            - RewritePath=/v3/api-docs/notification-service, /v3/api-docs
+
+# ── JWT ───────────────────────────────────────────────────────────────────────
 jwt:
   secret: smartbank-jwt-secret-key-that-is-at-least-256-bits-long-for-hs256
 
+# ── Resilience4j ──────────────────────────────────────────────────────────────
+resilience4j:
+  circuitbreaker:
+    instances:
+      authCircuitBreaker:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 10s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        sliding-window-type: COUNT_BASED
+      accountCircuitBreaker:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 15s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        sliding-window-type: COUNT_BASED
+      transactionCircuitBreaker:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 15s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        sliding-window-type: COUNT_BASED
+      notificationCircuitBreaker:
+        sliding-window-size: 10
+        minimum-number-of-calls: 5
+        failure-rate-threshold: 50
+        wait-duration-in-open-state: 20s
+        permitted-number-of-calls-in-half-open-state: 3
+        automatic-transition-from-open-to-half-open-enabled: true
+        sliding-window-type: COUNT_BASED
+  timelimiter:
+    instances:
+      authCircuitBreaker:
+        timeout-duration: 3s
+        cancel-running-future: true
+      accountCircuitBreaker:
+        timeout-duration: 5s
+        cancel-running-future: true
+      transactionCircuitBreaker:
+        timeout-duration: 8s
+        cancel-running-future: true
+      notificationCircuitBreaker:
+        timeout-duration: 5s
+        cancel-running-future: true
+
+# ── Eureka ────────────────────────────────────────────────────────────────────
 eureka:
   client:
     service-url:
@@ -27,14 +189,43 @@ eureka:
   instance:
     prefer-ip-address: true
 
+# ── Actuator ─────────────────────────────────────────────────────────────────
 management:
   endpoints:
     web:
       exposure:
-        include: health,info,gateway
+        include: health,info,gateway,circuitbreakers,ratelimiters,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
   tracing:
     sampling:
       probability: 1.0
   zipkin:
     tracing:
       endpoint: http://localhost:9411/api/v2/spans
+
+# ── Springdoc (Swagger aggregation) ──────────────────────────────────────────
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    urls:
+      - name: auth-service
+        url: /v3/api-docs/auth-service
+      - name: account-service
+        url: /v3/api-docs/account-service
+      - name: transaction-service
+        url: /v3/api-docs/transaction-service
+      - name: notification-service
+        url: /v3/api-docs/notification-service
+    urls-primary-name: transaction-service
+  api-docs:
+    enabled: true     # must be true — swagger-config endpoint depends on it
+  cache:
+    disabled: true

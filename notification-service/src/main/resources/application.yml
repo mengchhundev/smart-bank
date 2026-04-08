@@ -23,6 +23,15 @@ spring:
     consumer:
       group-id: notification-group
       auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.ErrorHandlingDeserializer
+      properties:
+        spring.deserializer.value.delegate.class: org.springframework.kafka.support.serializer.JsonDeserializer
+        spring.json.trusted.packages: "com.smartbank.*"
+        spring.json.value.default.type: com.smartbank.notification.dto.TransactionEvent
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
   mail:
     host: localhost
     port: 1025
@@ -32,6 +41,41 @@ spring:
           auth: false
           starttls:
             enable: false
+
+# ── Notification config ────────────────────────────────────────────────────────
+notification:
+  mail:
+    from: noreply@smartbank.com
+    # Default recipient — replace with user-profile service lookup in production.
+    default-recipient: customer@smartbank.com
+
+  telegram:
+    # Set enabled=true and fill bot-token + default-chat-id to activate Telegram.
+    # Get bot token from @BotFather. Get chat ID from @userinfobot on Telegram.
+    enabled: true
+    bot-token: "7239092860:AAFJT1YU6E-H1e7BMcogcQzsddkAbhi9tW0"
+    default-chat-id: "914354515"
+
+# ── Resilience4j ──────────────────────────────────────────────────────────────
+resilience4j:
+  retry:
+    instances:
+      emailRetry:
+        max-attempts: 3
+        wait-duration: 1s
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - com.smartbank.notification.exception.NotificationException
+        event-consumer-buffer-size: 10
+      telegramRetry:
+        max-attempts: 3
+        wait-duration: 1s
+        enable-exponential-backoff: true
+        exponential-backoff-multiplier: 2
+        retry-exceptions:
+          - com.smartbank.notification.exception.NotificationException
+        event-consumer-buffer-size: 10
 
 eureka:
   client:
@@ -44,7 +88,21 @@ management:
   endpoints:
     web:
       exposure:
-        include: health,info
+        include: health,info,prometheus,metrics
+  endpoint:
+    health:
+      show-details: always
+  health:
+    db:
+      enabled: true
+    kafka:
+      enabled: true
+  metrics:
+    tags:
+      application: ${spring.application.name}
+    distribution:
+      percentiles-histogram:
+        http.server.requests: true
   tracing:
     sampling:
       probability: 1.0

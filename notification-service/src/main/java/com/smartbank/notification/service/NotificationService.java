@@ -1,76 +1,56 @@
 package com.smartbank.notification.service;
 
+import com.smartbank.notification.channel.NotificationChannel;
 import com.smartbank.notification.dto.NotificationDto;
 import com.smartbank.notification.dto.TransactionEvent;
 import com.smartbank.notification.entity.Notification;
-import com.smartbank.notification.entity.NotificationStatus;
-import com.smartbank.notification.entity.NotificationType;
 import com.smartbank.notification.repository.NotificationRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-
-import java.time.LocalDateTime;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class NotificationService {
 
-    private final NotificationRepository notificationRepository;
-    private final EmailService emailService;
+    private final List<NotificationChannel> channels;
+    private final NotificationRepository    notificationRepository;
 
+    /**
+     * Fan-out: delivers the event to every registered {@link NotificationChannel}.
+     *
+     * <p>Each channel handles its own persistence, retry, and failure isolation.
+     * A failure in one channel does NOT abort delivery to the others.
+     *
+     * <p>To add a new channel, implement {@link NotificationChannel} and register
+     * it as a Spring {@code @Component} — no changes needed here.
+     */
     public void processTransactionEvent(TransactionEvent event) {
-        String subject = "Transaction " + event.getStatus() + " — " + event.getReferenceNumber();
-        String message = String.format("Transaction %s of %s %s from %s to %s is %s",
-                event.getReferenceNumber(),
-                event.getAmount(), event.getCurrency(),
-                event.getSourceAccount(), event.getTargetAccount(),
-                event.getStatus());
+        log.info("Fan-out {} event for reference={} to {} channel(s)",
+                event.getEventType(), event.getReferenceNumber(), channels.size());
 
-        Notification notification = Notification.builder()
-                .recipient(event.getSourceAccount())
-                .subject(subject)
-                .message(message)
-                .type(NotificationType.EMAIL)
-                .referenceNumber(event.getReferenceNumber())
-                .build();
-
-        try {
-            emailService.sendEmail(
-                    "customer@smartbank.com",
-                    subject,
-                    "transaction-notification",
-                    Map.of(
-                            "referenceNumber", event.getReferenceNumber(),
-                            "amount", event.getAmount().toString(),
-                            "currency", event.getCurrency(),
-                            "sourceAccount", event.getSourceAccount(),
-                            "targetAccount", event.getTargetAccount(),
-                            "status", event.getStatus(),
-                            "timestamp", event.getTimestamp().toString()
-                    )
-            );
-
-            notification.setStatus(NotificationStatus.SENT);
-            notification.setSentAt(LocalDateTime.now());
-            log.info("Notification sent for transaction: {}", event.getReferenceNumber());
-        } catch (Exception e) {
-            notification.setStatus(NotificationStatus.FAILED);
-            notification.setFailureReason(e.getMessage());
-            log.error("Failed to send notification for: {}", event.getReferenceNumber(), e);
+        for (NotificationChannel channel : channels) {
+            try {
+                channel.send(event);
+            } catch (Exception e) {
+                // Channel failure is isolated — other channels still run
+                log.error("Channel {} threw unexpected exception for reference={}: {}",
+                        channel.getType(), event.getReferenceNumber(), e.getMessage(), e);
+            }
         }
-
-        notificationRepository.save(notification);
     }
+
+    // ── Query ─────────────────────────────────────────────────────────────────
 
     public List<NotificationDto> getByRecipient(String recipient) {
         return notificationRepository.findByRecipient(recipient).stream()
                 .map(this::toDto)
                 .toList();
     }
+
+    // ── Private helpers ───────────────────────────────────────────────────────
 
     private NotificationDto toDto(Notification n) {
         return NotificationDto.builder()

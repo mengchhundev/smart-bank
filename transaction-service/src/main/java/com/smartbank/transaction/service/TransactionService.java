@@ -12,6 +12,9 @@ import com.smartbank.transaction.exception.TransactionNotFoundException;
 import com.smartbank.transaction.repository.IdempotencyRecordRepository;
 import com.smartbank.transaction.repository.TransactionRepository;
 import feign.FeignException;
+import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.MeterRegistry;
+import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -32,6 +35,20 @@ public class TransactionService {
     private final IdempotencyRecordRepository idempotencyRecordRepository;
     private final AccountClient               accountClient;
     private final TransactionEventProducer    eventProducer;
+    private final MeterRegistry               meterRegistry;
+
+    private Counter successCounter;
+    private Counter failedCounter;
+
+    @PostConstruct
+    void initMetrics() {
+        successCounter = Counter.builder("transaction_success_total")
+                .description("Total number of successfully completed transactions")
+                .register(meterRegistry);
+        failedCounter = Counter.builder("transaction_failed_total")
+                .description("Total number of failed transactions")
+                .register(meterRegistry);
+    }
 
     // ─── Transfer ─────────────────────────────────────────────────────────────
 
@@ -109,6 +126,7 @@ public class TransactionService {
 
             transaction.setStatus(TransactionStatus.COMPLETED);
             transaction.setCompletedAt(LocalDateTime.now());
+            successCounter.increment();
             log.info("Transfer completed: {}", transaction.getReferenceNumber());
 
         } catch (FeignException.UnprocessableEntity | FeignException.BadRequest e) {
@@ -116,6 +134,7 @@ public class TransactionService {
             String msg = extractFeignMessage(e);
             transaction.setStatus(TransactionStatus.FAILED);
             transaction.setFailureReason(msg);
+            failedCounter.increment();
             log.warn("Transfer rejected ({}): {} — {}",
                     transaction.getReferenceNumber(), e.status(), msg);
 
@@ -124,6 +143,7 @@ public class TransactionService {
             String reason = e.getMessage();
             transaction.setStatus(TransactionStatus.FAILED);
             transaction.setFailureReason(reason);
+            failedCounter.increment();
             log.error("Transfer failed ({}): {}", transaction.getReferenceNumber(), reason, e);
 
             // ── Saga compensation: reverse the debit if it was already applied ──
@@ -154,7 +174,11 @@ public class TransactionService {
         }
 
         // ── Publish saga event (fire-and-forget; logged on failure) ───────────
-        eventProducer.publishEvent(transaction);
+        try {
+            eventProducer.publishEvent(transaction);
+        } catch (Exception e) {
+            log.error("Failed to publish event for {}: {}", transaction.getReferenceNumber(), e.getMessage());
+        }
 
         return toDto(transaction);
     }

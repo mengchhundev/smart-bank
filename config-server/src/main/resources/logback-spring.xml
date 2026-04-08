@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration>
+
+    <!-- Pull service name and log level from Spring environment -->
+    <springProperty scope="context" name="SERVICE_NAME" source="spring.application.name" defaultValue="smartbank"/>
+    <springProperty scope="context" name="ROOT_LOG_LEVEL"  source="logging.level.root"             defaultValue="INFO"/>
+
+    <!-- ── JSON console appender (Logstash format) ─────────────────────────── -->
+    <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+            <!-- Rename / drop default fields to match our schema -->
+            <fieldNames>
+                <timestamp>@timestamp</timestamp>
+                <version>[ignore]</version>
+                <levelValue>[ignore]</levelValue>
+                <logger>logger</logger>
+                <thread>thread</thread>
+                <message>message</message>
+                <stackTrace>stack_trace</stackTrace>
+            </fieldNames>
+            <!-- Fixed tag added to every log line -->
+            <customFields>{"service":"${SERVICE_NAME}"}</customFields>
+            <!--
+                Micrometer Tracing (Brave) writes traceId and spanId into MDC.
+                LogstashEncoder includes all MDC keys by default — no explicit
+                includeMdcKeyName entries needed.
+            -->
+        </encoder>
+    </appender>
+
+    <!-- ── Noise suppression ────────────────────────────────────────────────── -->
+    <logger name="com.netflix.discovery"                            level="WARN"/>
+    <logger name="org.springframework.cloud.netflix.eureka"         level="WARN"/>
+    <logger name="org.apache.kafka.clients"                         level="WARN"/>
+    <logger name="org.hibernate.SQL"                                level="WARN"/>
+    <logger name="org.hibernate.orm.jdbc.bind"                      level="WARN"/>
+    <logger name="org.springframework.web.servlet.DispatcherServlet" level="WARN"/>
+
+    <root level="${ROOT_LOG_LEVEL}">
+        <appender-ref ref="JSON_CONSOLE"/>
+    </root>
+
+</configuration>

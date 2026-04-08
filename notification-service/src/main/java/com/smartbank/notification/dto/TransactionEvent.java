@@ -10,6 +10,13 @@ import java.time.LocalDateTime;
 
 @Data @Builder @NoArgsConstructor @AllArgsConstructor
 public class TransactionEvent {
+
+    /**
+     * Saga event type published by transaction-service:
+     * {@code TRANSACTION_SUCCESS} or {@code TRANSACTION_FAILED}.
+     */
+    private String eventType;
+
     private String referenceNumber;
     private String sourceAccount;
     private String targetAccount;
@@ -17,5 +24,16 @@ public class TransactionEvent {
     private String currency;
     private String status;
     private String transactionType;
+    private String failureReason;
     private LocalDateTime timestamp;
+
+    // ── Convenience predicates ─────────────────────────────────────────────────
+
+    public boolean isSuccess() {
+        return "TRANSACTION_SUCCESS".equalsIgnoreCase(eventType);
+    }
+
+    public boolean isFailed() {
+        return "TRANSACTION_FAILED".equalsIgnoreCase(eventType);
+    }
 }

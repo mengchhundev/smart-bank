@@ -1,0 +1,299 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+# Only one deploy at a time per environment
+concurrency:
+  group: cd-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  DOCKER_HUB_REPO: ${{ secrets.DOCKERHUB_USERNAME }}/smartbank
+  HELM_CHART_PATH: helm/smartbank
+
+jobs:
+  # ──────────────────────────────────────────────────────────────
+  # Job 1 – Deploy to staging via Helm
+  # ──────────────────────────────────────────────────────────────
+  deploy-staging:
+    name: Deploy → Staging (K8s)
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set short SHA
+        id: sha
+        run: echo "short=${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.3
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.31.3
+
+      - name: Configure kubeconfig (staging)
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.STAGING_KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Add Helm dependency repos
+        run: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo update
+
+      - name: Build Helm dependencies
+        run: helm dependency build ${{ env.HELM_CHART_PATH }}
+
+      - name: Deploy to staging with Helm
+        env:
+          IMAGE_TAG: main-${{ steps.sha.outputs.short }}
+        run: |
+          helm upgrade --install smartbank ${{ env.HELM_CHART_PATH }} \
+            --namespace smartbank \
+            --create-namespace \
+            --wait \
+            --timeout 10m \
+            --set global.imageRegistry="${{ secrets.DOCKERHUB_USERNAME }}" \
+            --set global.imageTag="${IMAGE_TAG}" \
+            --set secrets.dbPassword="${{ secrets.DB_PASSWORD_B64 }}" \
+            --set secrets.jwtSecret="${{ secrets.JWT_SECRET_B64 }}" \
+            --set secrets.configServerPassword="${{ secrets.CONFIG_PASSWORD_B64 }}" \
+            --set secrets.redisPassword="${{ secrets.REDIS_PASSWORD_B64 }}" \
+            --set secrets.smtpPassword="${{ secrets.SMTP_PASSWORD_B64 }}" \
+            --set postgresql.auth.password="${{ secrets.POSTGRES_PASSWORD }}" \
+            --set redis.auth.password="${{ secrets.REDIS_PASSWORD }}" \
+            --set kube-prometheus-stack.grafana.adminPassword="${{ secrets.GRAFANA_PASSWORD }}" \
+            --values ${{ env.HELM_CHART_PATH }}/values.yaml
+
+      - name: Verify rollout status
+        run: |
+          for deploy in config-server discovery-server api-gateway auth-service account-service transaction-service notification-service; do
+            echo "Checking rollout: $deploy"
+            kubectl rollout status deployment/$deploy -n smartbank --timeout=300s
+          done
+
+      - name: Clean up kubeconfig
+        if: always()
+        run: rm -f $HOME/.kube/config
+
+  # ──────────────────────────────────────────────────────────────
+  # Job 2 – Smoke tests against staging
+  # ──────────────────────────────────────────────────────────────
+  smoke-tests:
+    name: Smoke Tests (staging)
+    runs-on: ubuntu-latest
+    needs: deploy-staging
+    environment: staging
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.31.3
+
+      - name: Configure kubeconfig (staging)
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.STAGING_KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Get API Gateway endpoint
+        id: endpoint
+        run: |
+          # For LoadBalancer, get external IP; for NodePort/Ingress, use port-forward
+          GATEWAY_IP=$(kubectl get svc api-gateway -n smartbank -o jsonpath='{.status.loadBalancer.ingress[0].ip}' 2>/dev/null || echo "")
+          if [ -z "$GATEWAY_IP" ]; then
+            # Fallback: port-forward in background
+            kubectl port-forward svc/api-gateway 8080:80 -n smartbank &
+            sleep 5
+            GATEWAY_IP="localhost"
+          fi
+          echo "host=${GATEWAY_IP}" >> "$GITHUB_OUTPUT"
+
+      - name: Health check – api-gateway
+        run: |
+          curl --fail --silent --max-time 10 --retry 5 --retry-delay 10 \
+            "http://${{ steps.endpoint.outputs.host }}:8080/actuator/health" | \
+            python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('status')=='UP' else 1)"
+
+      - name: Health check – auth-service (via gateway)
+        run: |
+          curl --fail --silent --max-time 10 --retry 5 --retry-delay 10 \
+            "http://${{ steps.endpoint.outputs.host }}:8080/auth/actuator/health" | \
+            python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('status')=='UP' else 1)"
+
+      - name: Health check – account-service (via gateway)
+        run: |
+          curl --fail --silent --max-time 10 --retry 5 --retry-delay 10 \
+            "http://${{ steps.endpoint.outputs.host }}:8080/accounts/actuator/health" | \
+            python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('status')=='UP' else 1)"
+
+      - name: Health check – transaction-service (via gateway)
+        run: |
+          curl --fail --silent --max-time 10 --retry 5 --retry-delay 10 \
+            "http://${{ steps.endpoint.outputs.host }}:8080/transactions/actuator/health" | \
+            python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('status')=='UP' else 1)"
+
+      - name: Health check – notification-service (via gateway)
+        run: |
+          curl --fail --silent --max-time 10 --retry 5 --retry-delay 10 \
+            "http://${{ steps.endpoint.outputs.host }}:8080/notifications/actuator/health" | \
+            python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if d.get('status')=='UP' else 1)"
+
+      - name: Smoke – register + login flow
+        run: |
+          HOST="${{ steps.endpoint.outputs.host }}"
+
+          # --- Register a test user ---
+          REG_BODY='{"username":"smoke_test_${{ github.run_id }}","email":"smoke@test.local","password":"Sm0ke!Test#99"}'
+          REG_STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+            -X POST "http://${HOST}:8080/auth/api/v1/auth/register" \
+            -H "Content-Type: application/json" \
+            -d "$REG_BODY")
+          echo "Register status: $REG_STATUS"
+          [[ "$REG_STATUS" == "201" || "$REG_STATUS" == "200" ]] || \
+            { echo "Registration failed with HTTP $REG_STATUS"; exit 1; }
+
+          # --- Login and capture JWT ---
+          LOGIN_BODY='{"username":"smoke_test_${{ github.run_id }}","password":"Sm0ke!Test#99"}'
+          TOKEN=$(curl --fail --silent \
+            -X POST "http://${HOST}:8080/auth/api/v1/auth/login" \
+            -H "Content-Type: application/json" \
+            -d "$LOGIN_BODY" | python3 -c "import sys,json; print(json.load(sys.stdin)['token'])")
+          echo "JWT obtained: ${TOKEN:0:20}..."
+
+          # --- Access protected endpoint ---
+          ACC_STATUS=$(curl --silent --output /dev/null --write-out "%{http_code}" \
+            -H "Authorization: Bearer $TOKEN" \
+            "http://${HOST}:8080/accounts/api/v1/accounts")
+          echo "Accounts endpoint status: $ACC_STATUS"
+          [[ "$ACC_STATUS" == "200" ]] || \
+            { echo "Protected endpoint returned HTTP $ACC_STATUS"; exit 1; }
+
+          echo "All smoke tests passed."
+
+      - name: Notify on failure
+        if: failure()
+        run: |
+          echo "Smoke tests failed for commit ${{ github.sha }}."
+          echo "Consider rolling back: helm rollback smartbank -n smartbank"
+
+      - name: Clean up kubeconfig
+        if: always()
+        run: rm -f $HOME/.kube/config
+
+  # ──────────────────────────────────────────────────────────────
+  # Job 3 – Deploy to production (manual approval gate)
+  # ──────────────────────────────────────────────────────────────
+  deploy-production:
+    name: Deploy → Production (K8s)
+    runs-on: ubuntu-latest
+    needs: smoke-tests
+    # "production" GitHub Environment must have required reviewers configured
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set short SHA
+        id: sha
+        run: echo "short=${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Helm
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.3
+
+      - name: Set up kubectl
+        uses: azure/setup-kubectl@v4
+        with:
+          version: v1.31.3
+
+      - name: Configure kubeconfig (production)
+        run: |
+          mkdir -p $HOME/.kube
+          echo "${{ secrets.PROD_KUBECONFIG }}" | base64 -d > $HOME/.kube/config
+          chmod 600 $HOME/.kube/config
+
+      - name: Add Helm dependency repos
+        run: |
+          helm repo add bitnami https://charts.bitnami.com/bitnami
+          helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+          helm repo update
+
+      - name: Build Helm dependencies
+        run: helm dependency build ${{ env.HELM_CHART_PATH }}
+
+      - name: Deploy to production with Helm
+        env:
+          IMAGE_TAG: main-${{ steps.sha.outputs.short }}
+        run: |
+          helm upgrade --install smartbank ${{ env.HELM_CHART_PATH }} \
+            --namespace smartbank \
+            --create-namespace \
+            --wait \
+            --timeout 10m \
+            --set global.imageRegistry="${{ secrets.DOCKERHUB_USERNAME }}" \
+            --set global.imageTag="${IMAGE_TAG}" \
+            --set secrets.dbPassword="${{ secrets.DB_PASSWORD_B64 }}" \
+            --set secrets.jwtSecret="${{ secrets.JWT_SECRET_B64 }}" \
+            --set secrets.configServerPassword="${{ secrets.CONFIG_PASSWORD_B64 }}" \
+            --set secrets.redisPassword="${{ secrets.REDIS_PASSWORD_B64 }}" \
+            --set secrets.smtpPassword="${{ secrets.SMTP_PASSWORD_B64 }}" \
+            --set postgresql.auth.password="${{ secrets.POSTGRES_PASSWORD }}" \
+            --set postgresql.primary.persistence.size=50Gi \
+            --set redis.auth.password="${{ secrets.REDIS_PASSWORD }}" \
+            --set redis.architecture=replication \
+            --set kafka.controller.replicaCount=3 \
+            --set kube-prometheus-stack.grafana.adminPassword="${{ secrets.GRAFANA_PASSWORD }}" \
+            --set kube-prometheus-stack.prometheus.prometheusSpec.retention=30d \
+            --values ${{ env.HELM_CHART_PATH }}/values.yaml
+
+      - name: Verify rollout status
+        run: |
+          for deploy in config-server discovery-server api-gateway auth-service account-service transaction-service notification-service; do
+            echo "Checking rollout: $deploy"
+            kubectl rollout status deployment/$deploy -n smartbank --timeout=300s
+          done
+
+      - name: Production health checks
+        run: |
+          for i in {1..12}; do
+            STATUS=$(kubectl exec -n smartbank deploy/api-gateway -- \
+              wget -qO- --timeout=5 http://localhost:8080/actuator/health 2>/dev/null | \
+              python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('status','UNKNOWN'))" 2>/dev/null || echo "UNKNOWN")
+            if [[ "$STATUS" == "UP" ]]; then
+              echo "Production gateway healthy after $((i * 5))s"
+              break
+            fi
+            echo "Attempt $i: status=$STATUS – waiting 5s..."
+            sleep 5
+          done
+          [[ "$STATUS" == "UP" ]] || { echo "Production gateway did not become healthy in 60s"; exit 1; }
+
+      - name: Tag successful production release
+        if: success()
+        run: |
+          git config user.email "ci@smartbank.local"
+          git config user.name  "SmartBank CI"
+          git tag "release-$(date +%Y%m%d)-${{ steps.sha.outputs.short }}"
+          git push origin "release-$(date +%Y%m%d)-${{ steps.sha.outputs.short }}"
+
+      - name: Clean up kubeconfig
+        if: always()
+        run: rm -f $HOME/.kube/config

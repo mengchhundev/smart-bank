@@ -23,7 +23,11 @@
       "Bash(./gradlew :account-service:test --info)",
       "Bash(./gradlew :account-service:test --rerun)",
       "Bash(grep:*)",
-      "Bash(xargs -I {} find {} -name \"*.java\")"
+      "Bash(xargs -I {} find {} -name \"*.java\")",
+      "Skill(update-config)",
+      "Bash(ls D:/smart-banking/*/Dockerfile)",
+      "Bash(git -C \"D:/smart-banking\" diff --name-only)",
+      "Bash(git -C \"D:/smart-banking\" ls-files --others --exclude-standard)"
     ]
   }
 }

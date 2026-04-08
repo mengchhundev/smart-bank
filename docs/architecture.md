@@ -160,6 +160,73 @@ All services instrument traces via Micrometer + Brave and export to Zipkin (`htt
 
 ---
 
+## Kubernetes Deployment Topology
+
+SmartBank deploys to Kubernetes with the following topology:
+
+```
+┌─ smartbank namespace ──────────────────────────────────────────────────────┐
+│                                                                            │
+│  ┌─ Ingress (NGINX) ──────────────────────────────────────────────────┐   │
+│  │  smartbank.local                                                    │   │
+│  │  /api/*  → api-gateway:8080                                         │   │
+│  │  /zipkin → zipkin:9411                                              │   │
+│  │  /grafana → grafana:80                                              │   │
+│  └────────────────────────────────────────────────────────────────────┘   │
+│                                                                            │
+│  ┌─ Application Layer ─────────────────────────────────────────────────┐  │
+│  │                                                                      │  │
+│  │  Deployment          Deployment        Deployment                    │  │
+│  │  config-server (1)   discovery-srv (1)  api-gateway (2) ← LB Svc   │  │
+│  │                                                                      │  │
+│  │  Deployment (2)      Deployment (2)     Deployment (2)              │  │
+│  │  auth-service        account-service    transaction-service          │  │
+│  │                                                                      │  │
+│  │  Deployment (2)      Deployment (1)                                 │  │
+│  │  notification-svc    zipkin                                          │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                            │
+│  ┌─ Data Layer (Bitnami Helm Charts) ──────────────────────────────────┐  │
+│  │  StatefulSet           StatefulSet         StatefulSet              │  │
+│  │  postgresql (1)        kafka (1/3)         redis-master (1)         │  │
+│  │  PVC: 10-50Gi          PVC: 8Gi/broker     PVC: 2Gi                │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                            │
+│  ┌─ Observability (kube-prometheus-stack) ─────────────────────────────┐  │
+│  │  Prometheus · Grafana · ServiceMonitors                             │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                            │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Key Decisions
+
+| Concern | Approach |
+|---|---|
+| **Service discovery** | Eureka retained alongside K8s DNS — services register in both; Feign clients resolve via Eureka `lb://` |
+| **Configuration** | Spring Cloud Config Server remains the source of truth; ConfigMaps hold environment-level overrides (DB URLs, ports) |
+| **Secrets** | K8s Secrets (base64); in production, replace with Sealed Secrets or External Secrets Operator |
+| **Inter-service calls** | K8s ClusterIP Services provide stable DNS (`{service}.smartbank.svc.cluster.local`); Eureka provides load-balanced Feign routing |
+| **External access** | NGINX Ingress routes `/api/*` to api-gateway; LoadBalancer Service as fallback |
+| **Autoscaling** | HPA on CPU > 70% (min 2, max 5 for business services; min 1 for infra) |
+| **Health checks** | Spring Boot Actuator `readiness` + `liveness` probes; K8s manages restarts |
+| **Storage** | Bitnami StatefulSets with PVCs; PostgreSQL initdb creates per-service databases |
+| **Monitoring** | kube-prometheus-stack scrapes `/actuator/prometheus`; Grafana dashboards |
+| **CI/CD** | GitHub Actions → Docker Hub → `helm upgrade --install` via kubeconfig secret |
+
+### Helm Chart Dependencies
+
+The `helm/smartbank` chart bundles four subcharts:
+
+| Subchart | Version | Purpose |
+|---|---|---|
+| `bitnami/postgresql` | 16.4.1 | Shared database server with per-service databases |
+| `bitnami/kafka` | 31.3.1 | Event streaming (1 broker dev, 3 prod) |
+| `bitnami/redis` | 20.6.2 | API Gateway rate limiting (standalone dev, replication prod) |
+| `kube-prometheus-stack` | 67.9.0 | Prometheus + Grafana monitoring |
+
+---
+
 ## Build System
 
 Gradle multi-module project with:

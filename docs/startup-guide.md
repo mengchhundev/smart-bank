@@ -1,5 +1,65 @@
 # Startup Guide
 
+Two deployment methods are available: Docker Compose for local development, and Kubernetes (Helm) for staging/production.
+
+---
+
+## Kubernetes Startup (Helm)
+
+### Prerequisites
+
+- `kubectl`, `helm` v3.14+, and a running cluster (minikube, kind, or remote)
+- See [Kubernetes Deployment Guide](kubernetes-deployment.md) for full cluster setup
+
+### One-Command Deploy
+
+```bash
+helm dependency build helm/smartbank
+
+helm upgrade --install smartbank helm/smartbank \
+  --namespace smartbank \
+  --create-namespace \
+  --wait \
+  --timeout 10m
+```
+
+Helm handles startup ordering via readiness probes — no manual sequencing needed.
+
+### Verify
+
+```bash
+kubectl get pods -n smartbank           # all pods Running & Ready
+kubectl get svc -n smartbank            # all services listed
+kubectl get ingress -n smartbank        # ingress configured
+```
+
+### Access
+
+```bash
+# Port-forward the gateway
+kubectl port-forward svc/api-gateway 8080:80 -n smartbank
+
+# Smoke test
+curl http://localhost:8080/actuator/health
+```
+
+Or via Ingress at `http://smartbank.local/api/*` (requires hosts file entry).
+
+### Useful URLs (K8s)
+
+| URL | Purpose | Access |
+|---|---|---|
+| `http://smartbank.local/api/*` | API Gateway | Ingress |
+| `http://smartbank.local/swagger-ui` | Swagger UI | Ingress |
+| `http://smartbank.local/zipkin` | Distributed tracing | Ingress |
+| `http://smartbank.local/grafana` | Grafana dashboards | Ingress |
+
+For direct pod access, use `kubectl port-forward`.
+
+---
+
+## Docker Compose Startup (local development)
+
 Services must start in dependency order. Each group depends on the previous being fully up.
 
 ---

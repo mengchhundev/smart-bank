@@ -1,13 +1,23 @@
 dependencies {
-    // Gateway (reactive — no spring-boot-starter-web)
+    // Gateway (reactive — must NOT have spring-boot-starter-web on classpath)
     implementation 'org.springframework.cloud:spring-cloud-starter-gateway'
     implementation 'org.springframework.cloud:spring-cloud-starter-netflix-eureka-client'
     implementation 'org.springframework.cloud:spring-cloud-starter-config'
+
+    // Circuit breaker (reactive Resilience4j)
     implementation 'org.springframework.cloud:spring-cloud-starter-circuitbreaker-reactor-resilience4j'
 
+    // Rate limiting — requires Redis
+    implementation 'org.springframework.boot:spring-boot-starter-data-redis-reactive'
+
     // JWT validation at the edge
-    implementation 'org.springframework.boot:spring-boot-starter-oauth2-resource-server'
     implementation "io.jsonwebtoken:jjwt-api:${jjwtVersion}"
     runtimeOnly    "io.jsonwebtoken:jjwt-impl:${jjwtVersion}"
     runtimeOnly    "io.jsonwebtoken:jjwt-jackson:${jjwtVersion}"
+
+    // Security (WebFlux)
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+
+    // Swagger UI aggregation (WebFlux-compatible)
+    implementation 'org.springdoc:springdoc-openapi-starter-webflux-ui:2.3.0'
 }
