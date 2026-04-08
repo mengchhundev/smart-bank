@@ -1,0 +1,19 @@
+{{- if .Values.discoveryServer.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: discovery-server
+  namespace: {{ .Values.global.namespaces.infra }}
+  labels:
+    app.kubernetes.io/name: discovery-server
+    {{- include "smartbank.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "smartbank.selectorLabels" (dict "name" "discovery-server" "instance" .Release.Name) | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.discoveryServer.port }}
+      targetPort: {{ .Values.discoveryServer.port }}
+      protocol: TCP
+{{- end }}

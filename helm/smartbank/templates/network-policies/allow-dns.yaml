@@ -1,0 +1,24 @@
+{{- if .Values.networkPolicies.enabled }}
+# Every namespace needs DNS egress to kube-system
+{{- range $key, $ns := .Values.global.namespaces }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-dns-egress
+  namespace: {{ $ns }}
+  labels:
+    app.kubernetes.io/part-of: smartbank
+spec:
+  podSelector: {}
+  policyTypes:
+    - Egress
+  egress:
+    - to: []
+      ports:
+        - protocol: UDP
+          port: 53
+        - protocol: TCP
+          port: 53
+{{- end }}
+{{- end }}

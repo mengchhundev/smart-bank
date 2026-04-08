@@ -1,0 +1,73 @@
+{{- if .Values.networkPolicies.enabled }}
+# Allow apps → data services
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-apps-to-data
+  namespace: {{ .Values.global.namespaces.data }}
+  labels:
+    app.kubernetes.io/part-of: smartbank
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: smartbank
+      ports:
+        - protocol: TCP
+          port: 5432
+        - protocol: TCP
+          port: 6379
+        - protocol: TCP
+          port: 9092
+        - protocol: TCP
+          port: 2181
+---
+# Data pods can communicate internally (Kafka brokers, ZK ensemble, Redis replication)
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-data-internal
+  namespace: {{ .Values.global.namespaces.data }}
+  labels:
+    app.kubernetes.io/part-of: smartbank
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - podSelector: {}
+  egress:
+    - to:
+        - podSelector: {}
+---
+# Allow Prometheus scraping metrics exporters
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-prometheus-scrape-data
+  namespace: {{ .Values.global.namespaces.data }}
+  labels:
+    app.kubernetes.io/part-of: smartbank
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              app.kubernetes.io/part-of: smartbank
+      ports:
+        - protocol: TCP
+          port: 9187   # postgres-exporter
+        - protocol: TCP
+          port: 9121   # redis-exporter
+        - protocol: TCP
+          port: 9308   # kafka-exporter
+{{- end }}

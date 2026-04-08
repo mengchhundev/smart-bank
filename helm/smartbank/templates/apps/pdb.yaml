@@ -1,0 +1,18 @@
+{{- range $name, $svc := .Values.apps }}
+{{- if $svc.enabled }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Values.global.namespaces.apps }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}
+    {{- include "smartbank.labels" $ | nindent 4 }}
+spec:
+  minAvailable: {{ $.Values.global.pdb.minAvailable }}
+  selector:
+    matchLabels:
+      {{- include "smartbank.selectorLabels" (dict "name" $name "instance" $.Release.Name) | nindent 6 }}
+{{- end }}
+{{- end }}

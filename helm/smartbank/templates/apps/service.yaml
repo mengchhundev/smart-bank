@@ -1,0 +1,26 @@
+{{- range $name, $svc := .Values.apps }}
+{{- if $svc.enabled }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}
+  namespace: {{ $.Values.global.namespaces.apps }}
+  labels:
+    app.kubernetes.io/name: {{ $name }}
+    {{- include "smartbank.labels" $ | nindent 4 }}
+  {{- with $svc.serviceAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  type: {{ $svc.serviceType | default "ClusterIP" }}
+  selector:
+    {{- include "smartbank.selectorLabels" (dict "name" $name "instance" $.Release.Name) | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ $svc.port }}
+      targetPort: {{ $svc.port }}
+      protocol: TCP
+{{- end }}
+{{- end }}

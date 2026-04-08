@@ -1,0 +1,18 @@
+{{- if .Values.discoveryServer.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: discovery-server-config
+  namespace: {{ .Values.global.namespaces.infra }}
+  labels:
+    app.kubernetes.io/name: discovery-server
+    {{- include "smartbank.labels" . | nindent 4 }}
+data:
+  SPRING_PROFILES_ACTIVE: "k8s"
+  SERVER_PORT: {{ .Values.discoveryServer.port | quote }}
+  EUREKA_SERVER_ENABLE_SELF_PRESERVATION: {{ .Values.discoveryServer.selfPreservation | quote }}
+  EUREKA_SERVER_RENEWAL_PERCENT_THRESHOLD: {{ .Values.discoveryServer.renewalPercentThreshold | quote }}
+  EUREKA_INSTANCE_PREFER_IP_ADDRESS: "true"
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,prometheus"
+  MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
+{{- end }}

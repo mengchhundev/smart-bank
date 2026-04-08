@@ -1,0 +1,19 @@
+{{- if .Values.configServer.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: config-server
+  namespace: {{ .Values.global.namespaces.infra }}
+  labels:
+    app.kubernetes.io/name: config-server
+    {{- include "smartbank.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "smartbank.selectorLabels" (dict "name" "config-server" "instance" .Release.Name) | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.configServer.port }}
+      targetPort: {{ .Values.configServer.port }}
+      protocol: TCP
+{{- end }}

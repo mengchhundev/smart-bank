@@ -1,0 +1,60 @@
+{{- if .Values.zipkin.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zipkin
+  namespace: {{ .Values.global.namespaces.obs }}
+  labels:
+    app.kubernetes.io/name: zipkin
+    app.kubernetes.io/component: observability
+    {{- include "smartbank.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.zipkin.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "smartbank.selectorLabels" (dict "name" "zipkin" "instance" .Release.Name) | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "smartbank.selectorLabels" (dict "name" "zipkin" "instance" .Release.Name) | nindent 8 }}
+        app.kubernetes.io/part-of: smartbank
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: zipkin
+          image: "{{ .Values.zipkin.image.repository }}:{{ .Values.zipkin.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: {{ .Values.zipkin.port }}
+              protocol: TCP
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+                - ALL
+          env:
+            - name: STORAGE_TYPE
+              value: {{ .Values.zipkin.storageType | quote }}
+            - name: QUERY_MAX_SPANS
+              value: {{ .Values.zipkin.maxSpans | quote }}
+          resources:
+            {{- toYaml .Values.zipkin.resources | nindent 12 }}
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.zipkin.port }}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: {{ .Values.zipkin.port }}
+            initialDelaySeconds: 30
+            periodSeconds: 15
+      terminationGracePeriodSeconds: 30
+{{- end }}

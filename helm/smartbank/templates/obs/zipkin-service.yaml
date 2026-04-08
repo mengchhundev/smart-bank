@@ -1,0 +1,19 @@
+{{- if .Values.zipkin.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: zipkin
+  namespace: {{ .Values.global.namespaces.obs }}
+  labels:
+    app.kubernetes.io/name: zipkin
+    {{- include "smartbank.labels" . | nindent 4 }}
+spec:
+  type: ClusterIP
+  selector:
+    {{- include "smartbank.selectorLabels" (dict "name" "zipkin" "instance" .Release.Name) | nindent 4 }}
+  ports:
+    - name: http
+      port: {{ .Values.zipkin.port }}
+      targetPort: {{ .Values.zipkin.port }}
+      protocol: TCP
+{{- end }}
