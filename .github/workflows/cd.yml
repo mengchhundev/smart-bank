@@ -66,13 +66,17 @@ jobs:
             --timeout 10m \
             --set global.imageRegistry="${{ secrets.DOCKERHUB_USERNAME }}" \
             --set global.imageTag="${IMAGE_TAG}" \
-            --set secrets.dbPassword="${{ secrets.DB_PASSWORD_B64 }}" \
-            --set secrets.jwtSecret="${{ secrets.JWT_SECRET_B64 }}" \
-            --set secrets.configServerPassword="${{ secrets.CONFIG_PASSWORD_B64 }}" \
-            --set secrets.redisPassword="${{ secrets.REDIS_PASSWORD_B64 }}" \
-            --set secrets.smtpPassword="${{ secrets.SMTP_PASSWORD_B64 }}" \
-            --set postgresql.auth.password="${{ secrets.POSTGRES_PASSWORD }}" \
-            --set redis.auth.password="${{ secrets.REDIS_PASSWORD }}" \
+            --set secrets.postgresUser="${{ secrets.POSTGRES_USER }}" \
+            --set secrets.postgresPassword="${{ secrets.POSTGRES_PASSWORD }}" \
+            --set secrets.redisPassword="${{ secrets.REDIS_PASSWORD }}" \
+            --set secrets.jwtSecret="${{ secrets.JWT_SECRET }}" \
+            --set secrets.configServerPassword="${{ secrets.CONFIG_SERVER_PASSWORD }}" \
+            --set secrets.eurekaPassword="${{ secrets.EUREKA_PASSWORD }}" \
+            --set secrets.smtpUsername="${{ secrets.SMTP_USERNAME }}" \
+            --set secrets.smtpPassword="${{ secrets.SMTP_PASSWORD }}" \
+            --set secrets.telegramEnabled="${{ secrets.TELEGRAM_ENABLED }}" \
+            --set secrets.telegramBotToken="${{ secrets.TELEGRAM_BOT_TOKEN }}" \
+            --set secrets.telegramDefaultChatId="${{ secrets.TELEGRAM_CHAT_ID }}" \
             --set kube-prometheus-stack.grafana.adminPassword="${{ secrets.GRAFANA_PASSWORD }}" \
             --values ${{ env.HELM_CHART_PATH }}/values.yaml
 
@@ -250,14 +254,18 @@ jobs:
             --timeout 10m \
             --set global.imageRegistry="${{ secrets.DOCKERHUB_USERNAME }}" \
             --set global.imageTag="${IMAGE_TAG}" \
-            --set secrets.dbPassword="${{ secrets.DB_PASSWORD_B64 }}" \
-            --set secrets.jwtSecret="${{ secrets.JWT_SECRET_B64 }}" \
-            --set secrets.configServerPassword="${{ secrets.CONFIG_PASSWORD_B64 }}" \
-            --set secrets.redisPassword="${{ secrets.REDIS_PASSWORD_B64 }}" \
-            --set secrets.smtpPassword="${{ secrets.SMTP_PASSWORD_B64 }}" \
-            --set postgresql.auth.password="${{ secrets.POSTGRES_PASSWORD }}" \
+            --set secrets.postgresUser="${{ secrets.POSTGRES_USER }}" \
+            --set secrets.postgresPassword="${{ secrets.POSTGRES_PASSWORD }}" \
+            --set secrets.redisPassword="${{ secrets.REDIS_PASSWORD }}" \
+            --set secrets.jwtSecret="${{ secrets.JWT_SECRET }}" \
+            --set secrets.configServerPassword="${{ secrets.CONFIG_SERVER_PASSWORD }}" \
+            --set secrets.eurekaPassword="${{ secrets.EUREKA_PASSWORD }}" \
+            --set secrets.smtpUsername="${{ secrets.SMTP_USERNAME }}" \
+            --set secrets.smtpPassword="${{ secrets.SMTP_PASSWORD }}" \
+            --set secrets.telegramEnabled="${{ secrets.TELEGRAM_ENABLED }}" \
+            --set secrets.telegramBotToken="${{ secrets.TELEGRAM_BOT_TOKEN }}" \
+            --set secrets.telegramDefaultChatId="${{ secrets.TELEGRAM_CHAT_ID }}" \
             --set postgresql.primary.persistence.size=50Gi \
-            --set redis.auth.password="${{ secrets.REDIS_PASSWORD }}" \
             --set redis.architecture=replication \
             --set kafka.controller.replicaCount=3 \
             --set kube-prometheus-stack.grafana.adminPassword="${{ secrets.GRAFANA_PASSWORD }}" \

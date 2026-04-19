@@ -1,0 +1,339 @@
+# ─── auth-service PostgreSQL ───────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-auth
+  namespace: smartbank
+  labels:
+    app.kubernetes.io/name: postgres-auth
+spec:
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+  selector:
+    app.kubernetes.io/name: postgres-auth
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-auth
+  namespace: smartbank
+  labels:
+    app.kubernetes.io/name: postgres-auth
+spec:
+  serviceName: postgres-auth
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres-auth
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres-auth
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: auth_db
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: [pg_isready, -U, smartbank, -d, auth_db]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: [pg_isready, -U, smartbank, -d, auth_db]
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 2Gi
+---
+# ─── account-service PostgreSQL ────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-account
+  namespace: smartbank
+  labels:
+    app.kubernetes.io/name: postgres-account
+spec:
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+  selector:
+    app.kubernetes.io/name: postgres-account
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-account
+  namespace: smartbank
+  labels:
+    app.kubernetes.io/name: postgres-account
+spec:
+  serviceName: postgres-account
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres-account
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres-account
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: account_db
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: [pg_isready, -U, smartbank, -d, account_db]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: [pg_isready, -U, smartbank, -d, account_db]
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 2Gi
+---
+# ─── transaction-service PostgreSQL ────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-transaction
+  namespace: smartbank
+  labels:
+    app.kubernetes.io/name: postgres-transaction
+spec:
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+  selector:
+    app.kubernetes.io/name: postgres-transaction
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-transaction
+  namespace: smartbank
+  labels:
+    app.kubernetes.io/name: postgres-transaction
+spec:
+  serviceName: postgres-transaction
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres-transaction
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres-transaction
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: transaction_db
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: [pg_isready, -U, smartbank, -d, transaction_db]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: [pg_isready, -U, smartbank, -d, transaction_db]
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 5Gi
+---
+# ─── notification-service PostgreSQL ───────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-notification
+  namespace: smartbank
+  labels:
+    app.kubernetes.io/name: postgres-notification
+spec:
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+  selector:
+    app.kubernetes.io/name: postgres-notification
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: postgres-notification
+  namespace: smartbank
+  labels:
+    app.kubernetes.io/name: postgres-notification
+spec:
+  serviceName: postgres-notification
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres-notification
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgres-notification
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: postgres
+              containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: POSTGRES_PASSWORD
+            - name: POSTGRES_DB
+              value: notification_db
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: [pg_isready, -U, smartbank, -d, notification_db]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          livenessProbe:
+            exec:
+              command: [pg_isready, -U, smartbank, -d, notification_db]
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: [ReadWriteOnce]
+        resources:
+          requests:
+            storage: 2Gi

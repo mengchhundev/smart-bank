@@ -1,0 +1,277 @@
+# ─── Auth Service ─────────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "smartbank.componentLabels" "auth-service" | nindent 4 }}
+spec:
+  ports:
+    - name: http
+      port: 8081
+      targetPort: http
+  selector:
+    {{- include "smartbank.selectorLabels" "auth-service" | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "smartbank.componentLabels" "auth-service" | nindent 4 }}
+spec:
+  replicas: {{ .Values.businessServices.replicas }}
+  selector:
+    matchLabels:
+      {{- include "smartbank.selectorLabels" "auth-service" | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "smartbank.selectorLabels" "auth-service" | nindent 8 }}
+    spec:
+      containers:
+        - name: auth-service
+          image: {{ .Values.imageRegistry }}/smartbank-auth-service:{{ .Values.imageTag }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8081
+          envFrom:
+            {{- include "smartbank.envFrom" . | nindent 12 }}
+          env:
+            {{- include "smartbank.springEnv" . | nindent 12 }}
+            - name: SPRING_CLOUD_CONFIG_ENABLED
+              value: "false"
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres-auth:5432/auth_db
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: POSTGRES_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: POSTGRES_PASSWORD
+            - name: JWT_ACCESS_TOKEN_EXPIRATION
+              value: {{ .Values.authService.jwt.accessTokenExpiration | quote }}
+            - name: JWT_REFRESH_TOKEN_EXPIRATION
+              value: {{ .Values.authService.jwt.refreshTokenExpiration | quote }}
+          {{- include "smartbank.businessProbes" . | nindent 10 }}
+          resources:
+            {{- toYaml .Values.businessServices.resources | nindent 12 }}
+---
+# ─── Account Service ──────────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: account-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "smartbank.componentLabels" "account-service" | nindent 4 }}
+spec:
+  ports:
+    - name: http
+      port: 8082
+      targetPort: http
+  selector:
+    {{- include "smartbank.selectorLabels" "account-service" | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: account-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "smartbank.componentLabels" "account-service" | nindent 4 }}
+spec:
+  replicas: {{ .Values.businessServices.replicas }}
+  selector:
+    matchLabels:
+      {{- include "smartbank.selectorLabels" "account-service" | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "smartbank.selectorLabels" "account-service" | nindent 8 }}
+    spec:
+      containers:
+        - name: account-service
+          image: {{ .Values.imageRegistry }}/smartbank-account-service:{{ .Values.imageTag }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8082
+          envFrom:
+            {{- include "smartbank.envFrom" . | nindent 12 }}
+          env:
+            {{- include "smartbank.springEnv" . | nindent 12 }}
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres-account:5432/account_db
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: POSTGRES_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: POSTGRES_PASSWORD
+          {{- include "smartbank.businessProbes" . | nindent 10 }}
+          resources:
+            {{- toYaml .Values.businessServices.resources | nindent 12 }}
+---
+# ─── Transaction Service ──────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: transaction-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "smartbank.componentLabels" "transaction-service" | nindent 4 }}
+spec:
+  ports:
+    - name: http
+      port: 8083
+      targetPort: http
+  selector:
+    {{- include "smartbank.selectorLabels" "transaction-service" | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: transaction-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "smartbank.componentLabels" "transaction-service" | nindent 4 }}
+spec:
+  replicas: {{ .Values.businessServices.replicas }}
+  selector:
+    matchLabels:
+      {{- include "smartbank.selectorLabels" "transaction-service" | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "smartbank.selectorLabels" "transaction-service" | nindent 8 }}
+    spec:
+      containers:
+        - name: transaction-service
+          image: {{ .Values.imageRegistry }}/smartbank-transaction-service:{{ .Values.imageTag }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8083
+          envFrom:
+            {{- include "smartbank.envFrom" . | nindent 12 }}
+          env:
+            {{- include "smartbank.springEnv" . | nindent 12 }}
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres-transaction:5432/transaction_db
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: POSTGRES_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: POSTGRES_PASSWORD
+          {{- include "smartbank.businessProbes" . | nindent 10 }}
+          resources:
+            {{- toYaml .Values.businessServices.resources | nindent 12 }}
+---
+# ─── Notification Service ─────────────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "smartbank.componentLabels" "notification-service" | nindent 4 }}
+spec:
+  ports:
+    - name: http
+      port: 8085
+      targetPort: http
+  selector:
+    {{- include "smartbank.selectorLabels" "notification-service" | nindent 4 }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: {{ .Values.namespace }}
+  labels:
+    {{- include "smartbank.componentLabels" "notification-service" | nindent 4 }}
+spec:
+  replicas: {{ .Values.businessServices.replicas }}
+  selector:
+    matchLabels:
+      {{- include "smartbank.selectorLabels" "notification-service" | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "smartbank.selectorLabels" "notification-service" | nindent 8 }}
+    spec:
+      containers:
+        - name: notification-service
+          image: {{ .Values.imageRegistry }}/smartbank-notification-service:{{ .Values.imageTag }}
+          imagePullPolicy: {{ .Values.imagePullPolicy }}
+          ports:
+            - name: http
+              containerPort: 8085
+          envFrom:
+            {{- include "smartbank.envFrom" . | nindent 12 }}
+          env:
+            {{- include "smartbank.springEnv" . | nindent 12 }}
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres-notification:5432/notification_db
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: POSTGRES_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: POSTGRES_PASSWORD
+            - name: SPRING_MAIL_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: smartbank-config
+                  key: SMTP_HOST
+            - name: SPRING_MAIL_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: smartbank-config
+                  key: SMTP_PORT
+            - name: SPRING_MAIL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: SMTP_USERNAME
+            - name: SPRING_MAIL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: SMTP_PASSWORD
+            - name: SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH
+              valueFrom:
+                configMapKeyRef:
+                  name: smartbank-config
+                  key: SMTP_AUTH
+            - name: SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE
+              valueFrom:
+                configMapKeyRef:
+                  name: smartbank-config
+                  key: SMTP_STARTTLS_ENABLE
+            - name: MANAGEMENT_HEALTH_MAIL_ENABLED
+              value: "false"
+          {{- include "smartbank.businessProbes" . | nindent 10 }}
+          resources:
+            {{- toYaml .Values.businessServices.resources | nindent 12 }}

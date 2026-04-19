@@ -23,3 +23,5 @@ hs_err_pid*
 # ── Environment / Secrets ────────────────────────────────────
 .env
 *.env.local
+values.secret.yaml
+**/values.secret.yaml

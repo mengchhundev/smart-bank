@@ -1,0 +1,425 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: smartbank
+  labels:
+    app.kubernetes.io/name: auth-service
+spec:
+  ports:
+    - name: http
+      port: 8081
+      targetPort: http
+  selector:
+    app.kubernetes.io/name: auth-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: smartbank
+  labels:
+    app.kubernetes.io/name: auth-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: auth-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: auth-service
+    spec:
+      containers:
+        - name: auth-service
+          image: chhundev/smartbank-auth-service:1.0.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8081
+          envFrom:
+            - configMapRef:
+                name: smartbank-config
+            - secretRef:
+                name: smartbank-secret
+          env:
+            - name: EUREKA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: EUREKA_PASSWORD
+            - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+              value: http://eureka:$(EUREKA_PASSWORD)@discovery-server:8761/eureka/
+            - name: CONFIG_SERVER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: CONFIG_SERVER_PASSWORD
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: http://config:$(CONFIG_SERVER_PASSWORD)@config-server:8888
+            - name: SPRING_CLOUD_CONFIG_ENABLED
+              value: "false"
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres-auth:5432/auth_db
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: POSTGRES_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: POSTGRES_PASSWORD
+            - name: JWT_ACCESS_TOKEN_EXPIRATION
+              value: "900000"
+            - name: JWT_REFRESH_TOKEN_EXPIRATION
+              value: "604800000"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 35
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 70
+            periodSeconds: 20
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            failureThreshold: 36
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 150m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: account-service
+  namespace: smartbank
+  labels:
+    app.kubernetes.io/name: account-service
+spec:
+  ports:
+    - name: http
+      port: 8082
+      targetPort: http
+  selector:
+    app.kubernetes.io/name: account-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: account-service
+  namespace: smartbank
+  labels:
+    app.kubernetes.io/name: account-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: account-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: account-service
+    spec:
+      containers:
+        - name: account-service
+          image: chhundev/smartbank-account-service:1.0.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8082
+          envFrom:
+            - configMapRef:
+                name: smartbank-config
+            - secretRef:
+                name: smartbank-secret
+          env:
+            - name: EUREKA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: EUREKA_PASSWORD
+            - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+              value: http://eureka:$(EUREKA_PASSWORD)@discovery-server:8761/eureka/
+            - name: CONFIG_SERVER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: CONFIG_SERVER_PASSWORD
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: http://config:$(CONFIG_SERVER_PASSWORD)@config-server:8888
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres-account:5432/account_db
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: POSTGRES_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: POSTGRES_PASSWORD
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 35
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 70
+            periodSeconds: 20
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            failureThreshold: 36
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 150m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: transaction-service
+  namespace: smartbank
+  labels:
+    app.kubernetes.io/name: transaction-service
+spec:
+  ports:
+    - name: http
+      port: 8083
+      targetPort: http
+  selector:
+    app.kubernetes.io/name: transaction-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: transaction-service
+  namespace: smartbank
+  labels:
+    app.kubernetes.io/name: transaction-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: transaction-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: transaction-service
+    spec:
+      containers:
+        - name: transaction-service
+          image: chhundev/smartbank-transaction-service:1.0.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8083
+          envFrom:
+            - configMapRef:
+                name: smartbank-config
+            - secretRef:
+                name: smartbank-secret
+          env:
+            - name: EUREKA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: EUREKA_PASSWORD
+            - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+              value: http://eureka:$(EUREKA_PASSWORD)@discovery-server:8761/eureka/
+            - name: CONFIG_SERVER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: CONFIG_SERVER_PASSWORD
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: http://config:$(CONFIG_SERVER_PASSWORD)@config-server:8888
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres-transaction:5432/transaction_db
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: POSTGRES_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: POSTGRES_PASSWORD
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 35
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 70
+            periodSeconds: 20
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            failureThreshold: 36
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 150m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-service
+  namespace: smartbank
+  labels:
+    app.kubernetes.io/name: notification-service
+spec:
+  ports:
+    - name: http
+      port: 8085
+      targetPort: http
+  selector:
+    app.kubernetes.io/name: notification-service
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  namespace: smartbank
+  labels:
+    app.kubernetes.io/name: notification-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: notification-service
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: notification-service
+    spec:
+      containers:
+        - name: notification-service
+          image: chhundev/smartbank-notification-service:1.0.1
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8085
+          envFrom:
+            - configMapRef:
+                name: smartbank-config
+            - secretRef:
+                name: smartbank-secret
+          env:
+            - name: EUREKA_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: EUREKA_PASSWORD
+            - name: EUREKA_CLIENT_SERVICEURL_DEFAULTZONE
+              value: http://eureka:$(EUREKA_PASSWORD)@discovery-server:8761/eureka/
+            - name: CONFIG_SERVER_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: CONFIG_SERVER_PASSWORD
+            - name: SPRING_CLOUD_CONFIG_URI
+              value: http://config:$(CONFIG_SERVER_PASSWORD)@config-server:8888
+            - name: SPRING_DATASOURCE_URL
+              value: jdbc:postgresql://postgres-notification:5432/notification_db
+            - name: SPRING_DATASOURCE_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: POSTGRES_USER
+            - name: SPRING_DATASOURCE_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: POSTGRES_PASSWORD
+            - name: SPRING_MAIL_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: smartbank-config
+                  key: SMTP_HOST
+            - name: SPRING_MAIL_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: smartbank-config
+                  key: SMTP_PORT
+            - name: SPRING_MAIL_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: SMTP_USERNAME
+            - name: SPRING_MAIL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: smartbank-secret
+                  key: SMTP_PASSWORD
+            - name: SPRING_MAIL_PROPERTIES_MAIL_SMTP_AUTH
+              valueFrom:
+                configMapKeyRef:
+                  name: smartbank-config
+                  key: SMTP_AUTH
+            - name: SPRING_MAIL_PROPERTIES_MAIL_SMTP_STARTTLS_ENABLE
+              valueFrom:
+                configMapKeyRef:
+                  name: smartbank-config
+                  key: SMTP_STARTTLS_ENABLE
+            - name: MANAGEMENT_HEALTH_MAIL_ENABLED
+              value: "false"
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 35
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 70
+            periodSeconds: 20
+          startupProbe:
+            httpGet:
+              path: /actuator/health
+              port: http
+            failureThreshold: 36
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 150m
+              memory: 512Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi

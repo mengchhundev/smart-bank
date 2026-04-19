@@ -1,0 +1,157 @@
+namespace: smartbank
+
+imageRegistry: chhundev
+imageTag: "1.0.1"
+imagePullPolicy: IfNotPresent
+
+# ─── ConfigMap ───────────────────────────────────────────────────────────────
+config:
+  springProfilesActive: "k8s"
+  apiGatewayUrl: "https://api-smartbank.next-step-go.online"
+  redisHost: "redis"
+  redisPort: "6379"
+  kafkaBootstrapServers: "kafka:9092"
+  zipkinEndpoint: "http://zipkin:9411/api/v2/spans"
+  healthProbesEnabled: "true"
+  smtp:
+    host: "smtp.gmail.com"
+    port: "587"
+    auth: "true"
+    starttlsEnable: "true"
+
+# ─── Secrets ─────────────────────────────────────────────────────────────────
+# All values are intentionally empty. Real values are injected at deploy time
+# via --set flags from GitHub Actions secrets. Never commit real secrets here.
+secrets:
+  postgresUser: ""
+  postgresPassword: ""
+  redisPassword: ""
+  jwtSecret: ""
+  configServerPassword: ""
+  eurekaPassword: ""
+  smtpUsername: ""
+  smtpPassword: ""
+  telegramEnabled: "true"
+  telegramBotToken: ""
+  telegramDefaultChatId: ""
+
+# ─── PostgreSQL ───────────────────────────────────────────────────────────────
+postgres:
+  image: "postgres:16-alpine"
+  instances:
+    - name: auth
+      database: auth_db
+      storage: 2Gi
+    - name: account
+      database: account_db
+      storage: 2Gi
+    - name: transaction
+      database: transaction_db
+      storage: 5Gi
+    - name: notification
+      database: notification_db
+      storage: 2Gi
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# ─── Redis ────────────────────────────────────────────────────────────────────
+redis:
+  image: "redis:7-alpine"
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      cpu: 250m
+      memory: 256Mi
+
+# ─── Kafka ────────────────────────────────────────────────────────────────────
+kafka:
+  image: "apache/kafka:3.7.0"
+  clusterId: "MkU3OEVBNTcwNTJENDM2Qk"
+  storage: 5Gi
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+# ─── Zipkin ───────────────────────────────────────────────────────────────────
+zipkin:
+  image: "openzipkin/zipkin:3"
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+# ─── Platform Services ────────────────────────────────────────────────────────
+discoveryServer:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 384Mi
+    limits:
+      cpu: 500m
+      memory: 768Mi
+
+configServer:
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 384Mi
+    limits:
+      cpu: 500m
+      memory: 768Mi
+
+apiGateway:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 150m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+# ─── Business Services ────────────────────────────────────────────────────────
+businessServices:
+  replicas: 2
+  resources:
+    requests:
+      cpu: 150m
+      memory: 512Mi
+    limits:
+      cpu: "1"
+      memory: 1Gi
+
+authService:
+  jwt:
+    accessTokenExpiration: "900000"
+    refreshTokenExpiration: "604800000"
+
+# ─── Ingress ─────────────────────────────────────────────────────────────────
+ingress:
+  enabled: true
+  host: "api-smartbank.next-step-go.online"
+  tlsSecret: "smartbank-tls"
+  proxyBodySize: "10m"
+  clusterIssuer: "letsencrypt-prod"
+
+# ─── Cert-Manager ─────────────────────────────────────────────────────────────
+certManager:
+  enabled: true
+  email: "mengchhun232@gmail.com"
+  acmeServer: "https://acme-v02.api.letsencrypt.org/directory"

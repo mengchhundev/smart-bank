@@ -1,0 +1,13 @@
+apiVersion: v2
+name: smartbank
+description: Smart Bank microservices platform
+type: application
+version: 1.0.0
+appVersion: "1.0.1"
+keywords:
+  - banking
+  - microservices
+  - spring-cloud
+maintainers:
+  - name: chhundev
+    email: mengchhun232@gmail.com

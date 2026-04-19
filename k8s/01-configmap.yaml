@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: smartbank-config
+  namespace: smartbank
+  labels:
+    app.kubernetes.io/name: smartbank
+data:
+  SPRING_PROFILES_ACTIVE: "k8s"
+  APP_API_GATEWAY_URL: "https://api-smartbank.next-step-go.online"
+  SPRING_DATA_REDIS_HOST: "redis"
+  SPRING_DATA_REDIS_PORT: "6379"
+  SPRING_KAFKA_BOOTSTRAP_SERVERS: "kafka:9092"
+  MANAGEMENT_ZIPKIN_TRACING_ENDPOINT: "http://zipkin:9411/api/v2/spans"
+  MANAGEMENT_ENDPOINT_HEALTH_PROBES_ENABLED: "true"
+  SMTP_HOST: "smtp.gmail.com"
+  SMTP_PORT: "587"
+  SMTP_AUTH: "true"
+  SMTP_STARTTLS_ENABLE: "true"

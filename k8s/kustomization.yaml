@@ -1,0 +1,40 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: smartbank
+
+resources:
+  - 00-namespace.yaml
+  - 01-configmap.yaml
+  - 02-secrets.yaml
+  - 03-postgres.yaml
+  - 04-redis.yaml
+  - 05-kafka.yaml
+  - 06-platform-services.yaml
+  - 07-business-services.yaml
+  - 08-ingress.yaml
+  - 09-zipkin.yaml
+  - 10-cluster-issuer.yaml
+
+images:
+  - name: chhundev/smartbank-config-server
+    newName: chhundev/smartbank-config-server
+    newTag: 1.0.1
+  - name: chhundev/smartbank-discovery-server
+    newName: chhundev/smartbank-discovery-server
+    newTag: 1.0.1
+  - name: chhundev/smartbank-api-gateway
+    newName: chhundev/smartbank-api-gateway
+    newTag: 1.0.1
+  - name: chhundev/smartbank-auth-service
+    newName: chhundev/smartbank-auth-service
+    newTag: 1.0.1
+  - name: chhundev/smartbank-account-service
+    newName: chhundev/smartbank-account-service
+    newTag: 1.0.1
+  - name: chhundev/smartbank-transaction-service
+    newName: chhundev/smartbank-transaction-service
+    newTag: 1.0.1
+  - name: chhundev/smartbank-notification-service
+    newName: chhundev/smartbank-notification-service
+    newTag: 1.0.1
