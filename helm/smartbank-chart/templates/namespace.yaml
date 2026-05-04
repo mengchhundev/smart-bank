@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: {{ .Values.namespace }}
-  labels:
-    app.kubernetes.io/name: {{ include "smartbank.name" . }}
-    {{- include "smartbank.labels" . | nindent 4 }}
